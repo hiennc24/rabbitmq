@@ -1,6 +1,6 @@
 {
-  "name": "@hiennc/rabbitmq",
-  "version": "1.0.1",
+  "name": "@hiennc24/rabbitmq",
+  "version": "1.0.2",
   "description": "Queue and Event Bus with Rabbit MQ",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -22,9 +22,9 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hiennchat/rabbitmq.git"
+    "url": "git+https://github.com/hiennc24/rabbitmq.git"
   },
-  "homepage": "https://github.com/hiennchat/rabbitmq#readme",
+  "homepage": "https://github.com/hiennc24/rabbitmq#readme",
   "devDependencies": {
     "@types/amqplib": "^0.5.17",
     "@types/chai": "^4.2.18",

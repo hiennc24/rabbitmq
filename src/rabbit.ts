@@ -328,8 +328,12 @@ export class RabbitMQ implements IEventBus {
         await waitByPromise(60000);
         await this.connect();
       });
-    } catch (error) {
-      this.logger.error(error.message);
+    } catch (err) {
+      if (err instanceof Error) {
+        this.logger.error(err.message);
+      } else {
+        this.logger.error('Unexpected error', err);
+      }
       this.connectionStatus = NOT_CONNECTED;
     }
 
