@@ -58,10 +58,11 @@ export interface IEventBus {
   unsubscribe: (eventName: string) => Promise<void>;
   subscribe: (
     eventName: string,
+    type: 'direct' | 'topic' | 'headers' | 'fanout' | 'match' | string,
     listener: (event: IIntegrationEvent, done: (arg?: Error) => void, msg: IMsg) => void,
     options?: { noAck: boolean; retryCount: number }
   ) => Promise<void>;
-  publish: (integrationEvent: IIntegrationEvent) => Promise<boolean>;
+  publish: (integrationEvent: IIntegrationEvent,type: 'direct' | 'topic' | 'headers' | 'fanout' | 'match' | string) => Promise<boolean>;
   connect: () => Promise<void>;
 }
 
@@ -116,13 +117,14 @@ export class RabbitMQ implements IEventBus {
   }
 
   async unsubscribe(eventName: string): Promise<void> {
-    await this.createChannel();
+    await this.createChannel(eventName,'fanout');
     await this.channel.unbindQueue(this.consumer, this.exchange, eventName);
     this.eventEmitter.removeAllListeners(eventName);
   }
 
   async subscribe(
     eventName: string,
+    type: 'direct' | 'topic' | 'headers' | 'fanout' | 'match' | string,
     listener: (event: IIntegrationEvent, done: (arg?: Error) => void, msg: IMsg) => void,
     options?: {
       noAck: boolean;
@@ -137,7 +139,7 @@ export class RabbitMQ implements IEventBus {
       ...options
     };
 
-    await this.createChannel();
+    await this.createChannel(eventName,type);
 
     await this.channel.assertQueue(this.consumer);
     await this.channel.bindQueue(this.consumer, this.exchange, this.createRoutingKey(eventName));
@@ -216,7 +218,8 @@ export class RabbitMQ implements IEventBus {
     this.subscriptions.push({ eventName, listener, options });
   }
 
-  async publish(integrationEvent: IIntegrationEvent): Promise<boolean> {
+  async publish(integrationEvent: IIntegrationEvent,type: 'direct' | 'topic' | 'headers' | 'fanout' | 'match' | string): Promise<boolean> {
+    console.log('first integrationEvent', integrationEvent)
     let isPublished = false;
     for (
       let publishingRetryAttempt = 0;
@@ -227,13 +230,13 @@ export class RabbitMQ implements IEventBus {
         this.logger.info(
           `Creating RabbitMQ channel to publish event: ${integrationEvent.id} (${integrationEvent.name})`
         );
-        await this.createChannel();
+        await this.createChannel(integrationEvent.name,'fanout');
 
         this.logger.info(`Publishing event to RabbitMQ: ${integrationEvent.id}`);
         isPublished = this.channel.publish(
-          this.exchange,
-          this.createRoutingKey(integrationEvent.name),
-          Buffer.from(JSON.stringify(integrationEvent)),
+          integrationEvent.name,
+          type,
+          Buffer.from(JSON.stringify(integrationEvent.data)),
           {
             mandatory: true,
             persistent: true
@@ -273,7 +276,7 @@ export class RabbitMQ implements IEventBus {
     return eventName;
   }
 
-  async createChannel(): Promise<void> {
+  async createChannel(eventName: string, type: 'direct' | 'topic' | 'headers' | 'fanout' | 'match' | string): Promise<void> {
     if (!this.isConnected()) {
       await this.connect();
     }
@@ -283,7 +286,7 @@ export class RabbitMQ implements IEventBus {
     }
 
     this.channel = await this.connection.createChannel();
-    this.channel.assertExchange(this.exchange, 'topic', { durable: true });
+    this.channel.assertExchange(eventName, type, { durable: true });
   }
 
   async connect(): Promise<void> {
@@ -309,8 +312,8 @@ export class RabbitMQ implements IEventBus {
       this.connectionStatus = CONNECTED;
       this.connectionRetryAttempt = 0;
 
-      await this.createChannel();
-      await this.resubscribe();
+      // await this.createChannel();
+      // await this.resubscribe();
       this.logger.info(`RabbitMQ Client connected`);
 
       this.connection.on('error', async (error) => {
@@ -348,13 +351,13 @@ export class RabbitMQ implements IEventBus {
     }
   }
 
-  private async resubscribe() {
+  private async resubscribe(type :string) {
     if (this.subscriptions.length >= 1) {
       this.logger.info(`Resubscribe events at ${new Date().toISOString()}...`);
       try {
         await Promise.all(
           this.subscriptions.map((subscription) =>
-            this.subscribe(subscription.eventName, subscription.listener, subscription.options)
+            this.subscribe(subscription.eventName,type, subscription.listener, subscription.options)
           )
         );
       } catch (error) {
@@ -370,6 +373,7 @@ export class RabbitMQ implements IEventBus {
   }
 
   private isConnected() {
+    console.log('CONNECTED')
     return this.connectionStatus === CONNECTED;
   }
 

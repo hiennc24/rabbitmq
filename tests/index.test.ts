@@ -1,4 +1,4 @@
-import { describe, it } from 'mocha';
+// import { describe, it } from 'mocha';
 import { expect } from 'chai';
 import { EventEmitter } from 'events';
 import { IntegrationEvent, RabbitMQ, BaseEvent, IIntegrationEvent, ILogger } from '../src';
@@ -17,14 +17,13 @@ class UserEvent extends BaseEvent {
     try {
       this.logger.info('Implement event', event);
       done();
-    } catch (error) {
+    } catch (error:any) {
       done(error);
     }
   }
 }
 
-describe('PUBLISH event', () => {
-  it('should be published event', async () => {
+( async () => {
     // Main
     const eventEmitter = new EventEmitter();
     const eventBus = new RabbitMQ({ eventEmitter });
@@ -33,7 +32,7 @@ describe('PUBLISH event', () => {
 
     await eventBus.connect();
     // You can subscribe event from another service in Microservice Serivce System.
-    await Promise.all([eventBus.subscribe(USER_CREATED_EVENT, userEvent.created)]);
+    await Promise.all([eventBus.subscribe(USER_CREATED_EVENT,'fanout', userEvent.created)]);
 
     // Handle publised event in another file
     const userCreatedEvent = new IntegrationEvent({
@@ -41,7 +40,7 @@ describe('PUBLISH event', () => {
       data: user
     });
 
-    const result = await eventBus.publish(userCreatedEvent);
+    const result = await eventBus.publish(userCreatedEvent,'fanout');
     expect(result).to.eqls(true);
-  });
-});
+
+})();
